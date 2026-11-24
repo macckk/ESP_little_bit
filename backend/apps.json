@@ -1,0 +1,21 @@
+{
+  "apps": ["pet", "monitor", "contador"],
+  "default": "pet",
+
+  "monitor": {
+    "title": "Serviços",
+    "interval": 60,
+    "slow_ms": 1500,
+    "checks": [
+      {"name": "Backend", "url": "http://127.0.0.1:8000/apps"},
+      {"name": "Clima", "url": "https://api.open-meteo.com/v1/forecast?latitude=-20.42&longitude=-49.97&current=temperature_2m"},
+      {"name": "Internet", "url": "https://www.google.com/generate_204"}
+    ]
+  },
+
+  "contador": {
+    "title": "Contador",
+    "label": "Hoje",
+    "goal": 0
+  }
+}

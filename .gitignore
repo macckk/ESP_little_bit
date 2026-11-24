@@ -1,0 +1,8 @@
+.pio/
+secrets.ini
+__pycache__/
+
+backend/.env
+backend/.venv/
+backend/data/
+pets/*_previa.png
