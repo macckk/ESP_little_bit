@@ -222,3 +222,8 @@ Feito com [LVGL](https://lvgl.io/), [LovyanGFX](https://github.com/lovyan03/Lovy
 [FastAPI](https://fastapi.tiangolo.com/) e [Open-Meteo](https://open-meteo.com/). Fonte Montserrat e ícones
 Font Awesome (via LVGL). Pets desenhados com ChatGPT e convertidos pelo próprio projeto. Desenvolvido com
 [Claude Code](https://claude.com/claude-code).
+
+## Licença
+
+[MIT](LICENSE): use, modifique e distribua à vontade, mantendo o aviso de copyright. As bibliotecas usadas têm as
+licenças delas (LVGL e LovyanGFX: MIT/BSD; Montserrat: OFL; Font Awesome: licença própria, via LVGL).
