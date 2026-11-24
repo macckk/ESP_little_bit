@@ -226,4 +226,4 @@ Font Awesome (via LVGL). Pets desenhados com ChatGPT e convertidos pelo próprio
 ## Licença
 
 [MIT](LICENSE): use, modifique e distribua à vontade, mantendo o aviso de copyright. As bibliotecas usadas têm as
-licenças delas (LVGL e LovyanGFX: MIT/BSD; Montserrat: OFL; Font Awesome: licença própria, via LVGL).
+licenças delas (LVGL e LovyanGFX: MIT/BSD; fonte Montserrat: SIL OFL; ícones Font Awesome Free: CC BY 4.0, via LVGL).
