@@ -62,6 +62,7 @@ pet, uso do Claude, clima, conversão dos desenhos, apps) fica no **backend**, q
 
 - **Placa CYD ESP32-2432S028** ("Cheap Yellow Display"), versão de **2 portas USB** com tela **ST7789** 320×240 e
   toque resistivo. A variante com ILI9341 também funciona trocando um flag (ver [docs/HARDWARE.md](docs/HARDWARE.md)).
+  https://s.click.aliexpress.com/e/_c4W95SQd
 - Cabo USB e um PC com **Windows** (o backend é Python e roda em qualquer sistema; os atalhos deste guia são de
   Windows).
 - [Python 3.12+](https://www.python.org/) e [PlatformIO](https://platformio.org/) (`pip install platformio`).
