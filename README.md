@@ -98,7 +98,8 @@ Teste rodando com console (Ctrl+C para parar):
 .\.venv\Scripts\python.exe serve.py
 ```
 
-Abra http://127.0.0.1:8000/health: deve responder `"ok": true`. Na primeira vez ele converte os pets (~1 min);
+Abra http://127.0.0.1:8000/health: deve responder `"ok": true`. O `serve.py` fica de guarda: se o servidor cair, ele
+sobe de novo sozinho. Na primeira vez ele converte os pets (~1 min);
 depois sobe em segundos.
 
 **Iniciar com o Windows** (sem janela): crie um atalho na pasta Inicializar, ajustando o caminho:
@@ -136,7 +137,8 @@ A placa abre uma rede Wi-Fi **`cyd-xxxx-setup`** e mostra a senha e um QR na tel
 1. Conecte o celular nessa rede. A página de configuração abre sozinha (ou acesse 192.168.4.1).
 2. Em **Configure WiFi**: escolha sua rede 2,4 GHz, a senha, a **URL do backend** (`http://<IP do PC>:8000`) e o
    **token** (o `DEVICE_TOKEN` do `.env`). Salve.
-3. A placa reinicia, conecta e mostra o pet.
+3. A placa reinicia e mostra o andamento: Wi-Fi, o **IP** que recebeu e "Buscando dados no PC…"; depois, o pet.
+   Se o PC estiver desligado, ela avisa e continua tentando sozinha.
 
 Para recomeçar do zero: segure o botão **BOOT** por 5 segundos.
 

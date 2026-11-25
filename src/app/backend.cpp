@@ -112,7 +112,7 @@ static uint32_t fetchOnce(uint32_t& failDelay) {
     return refreshS;
   }
   uint32_t d = failDelay;
-  failDelay = min<uint32_t>(failDelay * 2, 60);
+  failDelay = min<uint32_t>(failDelay * 2, 15);  // PC voltou: a tela volta em ate 15 s
   return d;
 }
 

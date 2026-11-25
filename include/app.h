@@ -57,6 +57,7 @@ uint32_t pet_mood_since();   // lv_tick/millis de quando o humor mudou
 bool pet_serial_line(const String& line);  // "mood <humor>" para testes
 void pet_build(lv_obj_t* parent);
 void pet_update(JsonObjectConst d);
+void pet_offline(const char* msg);  // PC fora do ar: dorme e mostra msg no balao
 
 // ---- sprites.cpp: pets em pixel art baixados do backend (LittleFS /sprites)
 enum SpriteRole : uint8_t { SPR_NORMAL, SPR_BLINK, SPR_SLEEP, SPR_ALERT, SPR_HAPPY, SPR_WORK, SPR_TAIL, SPR_BREATHE };

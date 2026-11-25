@@ -1,46 +1,59 @@
 // App base do CYD: placa "burra" que desenha telas JSON vindas do backend.
 // Modulos: display (LVGL), netcfg (portal/NVS/reset), backend (task HTTP), ui (layouts),
 // ota (ArduinoOTA). Ver README.md e docs/GUIA.md.
+//
+// Ligar: "Ligando…" -> "Conectando ao Wi-Fi…" -> "Conectado, IP …" + "Buscando dados no PC…" -> tela do backend.
+// A tela antiga NAO volta no boot (mostrava um estado velho, ex. o pet "trabalhando", ate o PC responder).
+// PC fora do ar por mais de OFFLINE_PET_MS: o pet dorme e avisa (nao fica congelado no ultimo humor).
 #include <LittleFS.h>
 #include <WiFi.h>
+#include <unistd.h>
 
 #include "app.h"
 #include "board_cyd.h"
 
-static constexpr const char* LAST_PATH = "/last.json";
-static constexpr uint32_t PERSIST_MIN_MS = 5 * 60 * 1000;  // poupa a flash
+static constexpr uint32_t SHOW_IP_MS = 3000;        // o IP fica na tela pelo menos isso antes da 1a tela
+static constexpr uint32_t OFFLINE_PET_MS = 45000;   // backend sem responder por isso -> pet "sem conexao"
 
-static String lastSavedBody, unsavedBody;
-static uint32_t lastPersistAt = 0;
-static bool fsOk = false;
-static bool haveScreen = false;  // ja desenhou alguma tela do backend (ou a salva)
+static bool haveScreen = false;    // ja desenhou alguma tela do backend
+static uint32_t wifiUpAt = 0;      // quando o Wi-Fi conectou (0 = ainda nao)
+static String heldBody;            // 1a tela segurada ate o IP ficar visivel por SHOW_IP_MS
+static uint32_t offlineSince = 0;  // backend fora desde (0 = online)
+static bool petOffline = false;
 
-// Enquanto nao ha tela nenhuma, a area de conteudo mostra o que esta acontecendo.
+// Antes da primeira tela, a area de conteudo conta o que esta acontecendo.
 static void updateBootMessage() {
   if (haveScreen || netcfg_portal_active()) return;
   static String shown;
   String key, text;
   const char* icon = LV_SYMBOL_WIFI;
-  String err = backend_last_error();
+  String ssid = WiFi.SSID();
   if (!WiFi.isConnected()) {
     key = "wifi";
-    text = "Conectando ao Wi-Fi...";
-  } else if (gNet.url.isEmpty()) {
-    key = "nourl";
-    text = "Sem URL do backend.\nSegure BOOT 5 s para reconfigurar.";
-    icon = LV_SYMBOL_WARNING;
-  } else if (err.length()) {
-    key = "err:" + err;
-    text = "Backend não respondeu:\n" + err + "\n" + gNet.url;
-    icon = LV_SYMBOL_WARNING;
+    text = "Conectando ao Wi-Fi";
+    if (ssid.length()) text += "\n" + ssid;
+    text += "…";
   } else {
-    key = "fetch";
-    text = "Buscando tela...\n" + gNet.url;
-    icon = LV_SYMBOL_REFRESH;
+    String net = "Conectado" + (ssid.length() ? " à rede " + ssid : String()) + "\nIP " + WiFi.localIP().toString();
+    String err = backend_last_error();
+    if (gNet.url.isEmpty()) {
+      key = "nourl";
+      text = net + "\n\nSem endereço do PC.\nSegure BOOT 5 s para configurar.";
+      icon = LV_SYMBOL_WARNING;
+    } else if (err.length()) {
+      key = "err:" + err;
+      text = net + "\n\nO PC não respondeu (" + err + ").\nTentando de novo…";
+      icon = LV_SYMBOL_WARNING;
+    } else {
+      key = "fetch";
+      text = net + "\n\nBuscando dados no PC…";
+      icon = LV_SYMBOL_OK;
+    }
   }
   if (key == shown) return;
   shown = key;
-  ui_show_message("", text.c_str(), icon);
+  ui_show_message("Iniciando", text.c_str(), icon);
+  Serial.printf("BOOT %s\n", key.c_str());
 }
 
 static void handleSerial() {
@@ -79,33 +92,31 @@ static void logHeap() {
       WiFi.isConnected() ? WiFi.localIP().toString().c_str() : "--", WiFi.isConnected() ? WiFi.RSSI() : 0);
 }
 
-static void persist(const String& body, bool force) {
-  if (!fsOk || body == lastSavedBody) return;
-  if (!force && millis() - lastPersistAt < PERSIST_MIN_MS && lastPersistAt) {
-    unsavedBody = body;  // grava depois
-    return;
-  }
-  File f = LittleFS.open(LAST_PATH, "w");
-  if (f) {
-    f.print(body);
-    f.close();
-    lastSavedBody = body;
-    unsavedBody = String();
-    lastPersistAt = millis();
-  }
-}
-
-static void showLastSaved() {
-  if (!fsOk || !LittleFS.exists(LAST_PATH)) return;
-  File f = LittleFS.open(LAST_PATH, "r");
-  String body = f.readString();
-  f.close();
+static void render(const String& body) {
   uint32_t refresh;
   String err;
   if (ui_render_json(body, refresh, err)) {
-    lastSavedBody = body;
     haveScreen = true;
-    Serial.printf("ESTADO anterior restaurado (%u B)\n", body.length());
+    petOffline = false;
+    backend_set_refresh(refresh);
+  } else {
+    Serial.printf("TELA rejeitada: %s\n", err.c_str());
+  }
+}
+
+// PC/backend fora do ar: o pet nao pode ficar congelado "trabalhando". Depois de OFFLINE_PET_MS ele dorme e avisa;
+// a tela volta sozinha quando o backend responder.
+static void checkOffline(uint32_t now) {
+  if (!haveScreen) return;
+  if (backend_online()) {
+    offlineSince = 0;
+    return;
+  }
+  if (!offlineSince) offlineSince = now;
+  if (!petOffline && now - offlineSince >= OFFLINE_PET_MS && pet_is_built()) {
+    pet_offline("Sem conexão com o PC");
+    petOffline = true;
+    Serial.println("PET sem conexao com o PC: dormindo");
   }
 }
 
@@ -117,17 +128,15 @@ void setup() {
   }
   Serial.printf("\nCYD app | %s | heap %u\n", CYD_PANEL_NAME, ESP.getFreeHeap());
 
-  fsOk = LittleFS.begin(true);
-  if (!fsOk) Serial.println("LittleFS indisponivel");
+  if (!LittleFS.begin(true)) Serial.println("LittleFS indisponivel");
+  ::unlink("/littlefs/last.json");  // versoes antigas guardavam a ultima tela aqui (unlink: sem log se nao existe)
   display_init();
   ui_init();
+  ui_show_message("Iniciando", "Ligando…", LV_SYMBOL_POWER);
+  lv_timer_handler();  // desenha ja, antes do Wi-Fi
   ambient_begin();
 
   netcfg_begin();
-  if (!netcfg_portal_active()) {
-    showLastSaved();  // ultimo estado aparece (com aviso offline) ate o backend responder
-    updateBootMessage();
-  }
   configTzTime("<-03>3", "pool.ntp.org", "a.st1.ntp.br");  // America/Sao_Paulo (sem horario de verao)
   backend_begin();
   logHeap();
@@ -141,26 +150,31 @@ void loop() {
   ota_loop();
   if (ota_active()) return;
 
+  uint32_t now = millis();
+  if (WiFi.isConnected()) {
+    if (!wifiUpAt) wifiUpAt = now ? now : 1;
+  } else {
+    wifiUpAt = 0;
+  }
+
   String body;
   if (backend_take_new(body)) {
-    uint32_t refresh;
-    String err;
-    if (ui_render_json(body, refresh, err)) {
-      haveScreen = true;
-      backend_set_refresh(refresh);
-      persist(body, false);
-    } else {
-      Serial.printf("TELA rejeitada: %s\n", err.c_str());
-    }
+    if (!haveScreen && wifiUpAt && now - wifiUpAt < SHOW_IP_MS)
+      heldBody = body;  // deixa o IP visivel um pouco antes da primeira tela
+    else
+      render(body);
   }
-  if (unsavedBody.length() && millis() - lastPersistAt >= PERSIST_MIN_MS) persist(unsavedBody, true);
+  if (heldBody.length() && wifiUpAt && now - wifiUpAt >= SHOW_IP_MS) {
+    render(heldBody);
+    heldBody = String();
+  }
 
   static uint32_t lastStatus = 0, lastHeap = 0;
-  uint32_t now = millis();
   if (now - lastStatus >= 1000) {
     lastStatus = now;
     ui_tick_status();
     updateBootMessage();
+    checkOffline(now);
   }
   if (now - lastHeap >= 10000) {
     lastHeap = now;

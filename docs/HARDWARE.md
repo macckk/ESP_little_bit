@@ -77,7 +77,7 @@ calibração; `pio run -t erase` apaga.
 | nvs | 0x9000 | 20KB |
 | otadata | 0xE000 | 8KB |
 | app0 / app1 (OTA) | 0x10000 / 0x1D0000 | 1,75MB cada |
-| spiffs (LittleFS) | 0x390000 | 384KB (pets em pixel art, `/last.json`) |
+| spiffs (LittleFS) | 0x390000 | 384KB (pets em pixel art) |
 | coredump | 0x3F0000 | 64KB |
 
 Arquivo: [partitions_cyd.csv](../partitions_cyd.csv). Com 128KB de LittleFS (`min_spiffs.csv`) os 8 pets não cabiam e a

@@ -760,3 +760,15 @@ void pet_update(JsonObjectConst d) {
   lv_obj_update_layout(bubbleBox);
   lv_obj_align_to(usageLbl, bubbleBox, LV_ALIGN_OUT_BOTTOM_LEFT, 2, *bubble ? 8 : 0);
 }
+
+// Backend fora do ar: dorme e avisa no balao (sem uso velho). Volta sozinho na proxima tela do backend.
+void pet_offline(const char* msg) {
+  if (!petObj) return;
+  JsonDocument d;
+  d["mood"] = "sleeping";
+  d["title"] = title;
+  d["bubble"] = msg;
+  d["sub"] = "";
+  d["usage"].to<JsonArray>();
+  pet_update(d.as<JsonObjectConst>());
+}

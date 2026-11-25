@@ -268,7 +268,7 @@ linhas e colunas. No backend, `/health` → `sprites` mostra quadros, grade, cor
 | `app/sprites.py` | conversor e catálogo de pets em pixel art |
 | `hooks/claude_hook.py` | hook global do Claude Code → `POST /events/claude` (1 s de timeout, sempre sai 0) |
 | `hooks/statusline.py` | linha de status do CLI → `POST /events/statusline` |
-| `serve.py` | lançador (log em `data/backend.log`, para no máximo 2 s ao desligar) |
+| `serve.py` | lançador com **guardião**: roda o servidor num processo filho e o reinicia se cair (log em `data/backend.log`) |
 
 ### Endpoints
 
@@ -353,7 +353,7 @@ cd backend; .\.venv\Scripts\python -m unittest discover -s tests
 | `ui.cpp` | barra de status, layouts genéricos (`status`, `number`, `qr`, `message`, `pet`), botões e menu de apps |
 | `pet.cpp` | pet em pixel art, humores, efeitos, seletor, carrossel |
 | `sprites.cpp` | download/validação dos pets (LittleFS) e pet reserva embutido |
-| `backend.cpp` | task (core 0) com long-poll, ETag, backoff 5→60 s; sync de pets; task de ações (toques) |
+| `backend.cpp` | task (core 0) com long-poll, ETag, novas tentativas 5→10→15 s; sync de pets; task de ações (toques) |
 | `netcfg.cpp` | portal Wi-Fi (WiFiManager), URL/token na NVS, reset por BOOT |
 | `ambient.cpp` | LED RGB traseiro, modo noite por horário, brilho |
 | `ota.cpp` | ArduinoOTA com barra de progresso |
@@ -448,8 +448,14 @@ Campos comuns: `title` (barra de status), `refresh` (segundos entre consultas, a
  "items":[{"label":"postgres","state":"ok","value":"3 ms"},{"label":"n8n","state":"err","value":"FORA"}]}
 ```
 
-**Offline:** a tela atual continua, a barra mostra `⚠ offline HH:MM` e as tentativas seguem em 5→10→…→60 s.
-O último JSON fica em LittleFS (`/last.json`, no máximo a cada 5 min) e volta no boot até o backend responder.
+**Ao ligar:** "Ligando…" → "Conectando ao Wi-Fi" → "Conectado à rede X, IP …" e "Buscando dados no PC…" (o IP fica
+pelo menos 3 s na tela) → a primeira tela do backend. Se o PC não responder: "O PC não respondeu (motivo). Tentando de
+novo…". A placa **não** mostra mais a última tela salva (antigo `/last.json`): ela trazia um estado velho, como o pet
+"trabalhando", até o PC responder.
+
+**Offline:** a tela atual continua, a barra mostra `⚠ offline HH:MM` e as tentativas seguem em 5→10→15 s (o PC volta →
+a tela volta em até 15 s). No pet, depois de 45 s sem o PC ele **dorme** com o balão "Sem conexão com o PC" e sem as
+linhas de uso (não fica congelado no último humor).
 
 ## Fontes PT-BR
 
@@ -496,6 +502,8 @@ Dica: no Git Bash, rode as ferramentas de serial com `PYTHONIOENCODING=utf-8` (o
 | LDR sempre 0 | divisor abaixo do piso do ADC nesta placa | modo noite por horário |
 | Tela nova demorava ~30 s após trocar de app | depois de cada tela a placa esperava o `refresh` dela antes de consultar de novo | depois de cada toque a placa consulta na hora |
 | Backend levava ~57 s para subir | reconvertia os 8 pets a cada início | cache em disco por pet (`data/sprites_cache/`): ~8 s |
+| Ao ligar, a placa mostrava o pet "trabalhando" de antes até o PC responder | restaurava a última tela salva | sequência de boot (Wi-Fi, IP, PC) e pet "sem conexão" após 45 s offline |
+| Backend morreu em silêncio e a placa ficou sem dados | causa desconhecida (nada no log nem no Windows) | `serve.py` com guardião que reinicia o servidor |
 | Pets da IA: tamanho variando, sorriso sumindo, pontinhos rosa | blocos irregulares, compressão WebP | ver [Conversão](#conversão-backendappspritespy) |
 
 ## Pendências e ideias
